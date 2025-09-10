@@ -2,6 +2,7 @@
 
 namespace Jops\TYPO3\Loki\Log\Writers;
 
+use TYPO3\CMS\Core\Http\Client\GuzzleClientFactory;
 use Throwable;
 use Jops\TYPO3\Loki\Log\LogRecordFormatter;
 use RuntimeException;
@@ -31,7 +32,10 @@ class LokiWriter extends AbstractWriter
     public function __construct(array $options = [])
     {
         $this->extensionConfiguration = GeneralUtility::makeInstance(ExtensionConfiguration::class);
-        $this->requestFactory = GeneralUtility::makeInstance(RequestFactory::class);
+        $this->requestFactory = GeneralUtility::makeInstance(
+            RequestFactory::class,
+            new GuzzleClientFactory()
+        );
 
         parent::__construct($options);
     }
@@ -72,7 +76,7 @@ class LokiWriter extends AbstractWriter
         /** @var string $password */
         $password = $this->extensionConfiguration->get("loki", "basic-auth/password");
 
-        if ($username !== "" && $password !== "") {
+        if (!empty($username) && !empty($password)) {
             $options["auth"] = [
                 $username,
                 $password,
@@ -82,6 +86,8 @@ class LokiWriter extends AbstractWriter
         try {
             $this->requestFactory->request("{$baseUrl}/loki/api/v1/push", "POST", $options);
         } catch (Throwable $t) {
+            //var_dump($t);
+            //exit;
             // NOOP. Don't throw an exception when loki could not be reached.
         }
 
@@ -104,6 +110,7 @@ class LokiWriter extends AbstractWriter
     protected function unixEpochNanoSeconds(): string
     {
         $epoch = time() * 1000000000;
+
         return "{$epoch}";
     }
 }
